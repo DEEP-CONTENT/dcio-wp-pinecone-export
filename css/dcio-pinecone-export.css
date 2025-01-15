@@ -1,0 +1,9 @@
+.pinecone-export {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+input[type="checkbox"].pinecone-export__input {
+  margin-top: 2px;
+}
