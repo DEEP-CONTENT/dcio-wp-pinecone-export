@@ -7,7 +7,15 @@ Author: Sebastian Seypt
 */
 
 /**
- * Main plugin class for heise I/O Export functionality.
+ * Main plugin class for managing Pinecone vector database integration with WordPress.
+ * 
+ * This class handles the core functionality for exporting WordPress posts to Pinecone,
+ * including:
+ * - Admin interface setup and rendering
+ * - Post status change monitoring
+ * - Vector creation and management
+ * - Meta box controls for post-level export settings
+ * - AJAX handlers for manual export/delete operations
  */
 class DCIO_Pinecone_Export
 {
