@@ -209,6 +209,7 @@ class DCIO_Pinecone_Handler
         $date_published = explode(" ", $post->post_modified ?? $post->post_date)[0];
         $timestamp = strtotime($date_published);
         $language = explode("_", get_locale())[0];
+        $author_name = get_the_author_meta('display_name', $post->post_author);
 
         foreach ($chunks as $index => $chunk) {
             $vectors[] = [
@@ -216,7 +217,7 @@ class DCIO_Pinecone_Handler
                 "id" => strval($post->ID) . $addition,
                 "values" => $embeddings['data'][$index]['embedding'],
                 "metadata" => [
-                    "author" => $post->post_author,
+                    "author" => $author_name,
                     "categories" => $this->get_categories_array($post->ID),
                     "date" => $date_published,
                     "id" => $post->ID,
