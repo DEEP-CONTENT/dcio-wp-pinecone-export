@@ -88,14 +88,19 @@ class DCIO_WP_CLI_Command extends WP_CLI_Command
                 $result = $this->pinecone_export->upload_delete_blob($post, 'add');
 
                 if ($result['status'] === 'success') {
-                    // Mark post as exported
                     update_post_meta($post_id, 'pinecone_exported', true);
                     $progress->tick();
                 } else {
                     WP_CLI::warning(sprintf('Failed to export post %d: %s', $post_id, $result['message']));
                     $progress->tick();
                 }
+
+                // Add rate limiting delay
+                usleep(100000); // 100ms delay between requests
             }
+
+            // Add larger delay between batches
+            sleep(1); // 1 second delay between batches
         }
 
         $progress->finish();
