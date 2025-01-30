@@ -6,6 +6,13 @@ Version: 1.0
 Author: Sebastian Seypt
 */
 
+
+// Add the WP-CLI command registration here
+if (defined('WP_CLI') && WP_CLI) {
+    require_once plugin_dir_path(__FILE__) . 'includes/class/dcio-wp-cli-command.php';
+    WP_CLI::add_command('heise-io', 'DCIO_WP_CLI_Command');
+}
+
 /**
  * Main plugin class for managing Pinecone vector database integration with WordPress.
  * 
@@ -52,6 +59,15 @@ class DCIO_Pinecone_Export
         require plugin_dir_path(__FILE__) . 'includes/class/dcio-pinecone-handler.php';
     }
 
+    private function has_required_credentials()
+    {
+        $pinecone_api_key = get_option('dcio_pinecone_api_key');
+        $openai_api_key = get_option('dcio_openai_api_key');
+        $pinecone_host = get_option('dcio_pinecone_host');
+
+        return ($pinecone_api_key && $openai_api_key && $pinecone_host);
+    }
+
     private function init_hooks()
     {
         add_action('init', array('DCIO_Pinecone_Export_Settings', 'init'));
@@ -66,12 +82,16 @@ class DCIO_Pinecone_Export
 
     public function register_admin_menu()
     {
+        $default_callback = !$this->has_required_credentials()
+            ? array($this, 'render_settings_page')
+            : array($this, 'render_article_view_page');
+
         add_menu_page(
             'DC/IO Pinecone Export',
             'heise I/O Export',
             'manage_options',
             'dcio_pinecone_article_view',
-            array($this, 'render_article_view_page'),
+            $default_callback,
             'dashicons-upload',
             4
         );
@@ -119,6 +139,15 @@ class DCIO_Pinecone_Export
 
     public function ajax_upload_delete_blob()
     {
+        if (!$this->has_required_credentials()) {
+            wp_send_json([
+                'success' => false,
+                'message' => 'API credentials not configured. Please check plugin settings.'
+            ]);
+            wp_die();
+        }
+
+
         $post_id = $_POST['post_id'] ?? 0;
         $pinecone_action = $_POST['pinecone_action'] ?? "";
 
@@ -156,6 +185,14 @@ class DCIO_Pinecone_Export
 
     public function upload_delete_blob($post, $action)
     {
+        if (!$this->has_required_credentials()) {
+            return [
+                "code" => "error",
+                "status" => 'error',
+                "message" => "API credentials not configured. Please check plugin settings."
+            ];
+        }
+
         if ($action === "delete") {
             $result = $this->pinecone_handler->deleteVectorFromPinecone($post->ID);
             if ($result["status"] === "success") {
@@ -206,6 +243,10 @@ class DCIO_Pinecone_Export
 
     public function handle_post_status_change($new_status, $old_status, $post)
     {
+        if (!$this->has_required_credentials()) {
+            return;
+        }
+
         if ($new_status == 'publish') {
             $this->upload_delete_blob($post, "add");
         } else {

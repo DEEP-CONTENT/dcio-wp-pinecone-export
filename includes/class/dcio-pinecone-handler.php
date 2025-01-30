@@ -1,17 +1,20 @@
 <?php
 
-class DCIO_Pinecone_Handler {
+class DCIO_Pinecone_Handler
+{
     private $openai_api_key;
     private $pinecone_api_key;
     private $pinecone_host;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->openai_api_key = get_option('dcio_openai_api_key');
         $this->pinecone_api_key = get_option('dcio_pinecone_api_key');
         $this->pinecone_host = get_option('dcio_pinecone_host');
     }
 
-    public function get_categories_array(int $post_id): array {
+    public function get_categories_array(int $post_id): array
+    {
         $categories = get_the_category($post_id);
         $categories_array = [];
 
@@ -22,7 +25,8 @@ class DCIO_Pinecone_Handler {
         return $categories_array;
     }
 
-    public function get_tags_array(int $post_id): array {
+    public function get_tags_array(int $post_id): array
+    {
         $tags = get_the_tags($post_id);
 
         if (!$tags) {
@@ -37,7 +41,8 @@ class DCIO_Pinecone_Handler {
         return $tags_array;
     }
 
-    public function get_day_month_year(string $string): array {
+    public function get_day_month_year(string $string): array
+    {
         $date = [];
         $date_string = explode('.', $string);
 
@@ -54,7 +59,8 @@ class DCIO_Pinecone_Handler {
         return $date;
     }
 
-    public function get_posts_ids_to_export(): array {
+    public function get_posts_ids_to_export(): array
+    {
         $args = array(
             'post_type' => 'post',
             'post_status' => 'publish',
@@ -76,7 +82,8 @@ class DCIO_Pinecone_Handler {
         return get_posts($args);
     }
 
-    public function get_number_of_exportable_posts(): int {
+    public function get_number_of_exportable_posts(): int
+    {
         $args = array(
             'post_type' => 'post',
             'post_status' => 'publish',
@@ -94,7 +101,8 @@ class DCIO_Pinecone_Handler {
         return count($post_ids);
     }
 
-    public function get_number_exported_posts(): int {
+    public function get_number_exported_posts(): int
+    {
         $args = array(
             'post_type' => 'post',
             'post_status' => 'publish',
@@ -113,7 +121,8 @@ class DCIO_Pinecone_Handler {
         return count($post_ids);
     }
 
-    public function get_number_excluded_posts(): int {
+    public function get_number_excluded_posts(): int
+    {
         $args = array(
             'post_type' => 'post',
             'post_status' => 'publish',
@@ -132,9 +141,10 @@ class DCIO_Pinecone_Handler {
         return count($post_ids);
     }
 
-    public function chunkText(string $text, int $maxLength = 2000, string $separator = ' ', int $overlapWords = 10): array {
+    public function chunkText(string $text, int $maxLength = 2000, string $separator = ' ', int $overlapWords = 10): array
+    {
         $text = trim($text);
-        
+
         if (empty($text) || $maxLength <= 0 || $overlapWords < 0 || $separator === '') {
             return [];
         }
@@ -164,7 +174,8 @@ class DCIO_Pinecone_Handler {
         return $chunks;
     }
 
-    public function getEmbeddings(array $chunks): array {
+    public function getEmbeddings(array $chunks): array
+    {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, 'https://api.openai.com/v1/embeddings');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -190,10 +201,11 @@ class DCIO_Pinecone_Handler {
         return json_decode($result, true);
     }
 
-    public function createVectors(array $chunks, array $embeddings, WP_Post $post): array {
+    public function createVectors(array $chunks, array $embeddings, WP_Post $post): array
+    {
         $vectors = [];
         $hasChunks = count($chunks) > 1;
-        
+
         $date_published = explode(" ", $post->post_modified ?? $post->post_date)[0];
         $timestamp = strtotime($date_published);
         $language = explode("_", get_locale())[0];
@@ -220,7 +232,8 @@ class DCIO_Pinecone_Handler {
         return $vectors;
     }
 
-    private function is_request_error($ch): bool {
+    private function is_request_error($ch): bool
+    {
         $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
         if (curl_errno($ch)) {
@@ -236,11 +249,14 @@ class DCIO_Pinecone_Handler {
         return false;
     }
 
-    public function deleteVectorFromPinecone(string $id): array {
-        $id = strval($id);
+    public function deleteVectorFromPinecone(string $id): array
+    {
+        $id = intval($id);
 
         $ch = curl_init();
+
         curl_setopt($ch, CURLOPT_URL, "{$this->pinecone_host}/vectors/list?namespace=posts&prefix=$id#");
+        // curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
         curl_setopt($ch, CURLOPT_HTTPHEADER, ["Api-Key: {$this->pinecone_api_key}"]);
@@ -251,7 +267,7 @@ class DCIO_Pinecone_Handler {
 
         $responseData = json_decode($response, true);
 
-        if(empty($responseData['vectors'])) {
+        if (empty($responseData['vectors'])) {
             return [
                 'code' => $code,
                 'status' => 'success',
@@ -259,9 +275,28 @@ class DCIO_Pinecone_Handler {
             ];
         }
 
-        $vectorIds = array_map(function ($vector) {
-            return $vector['id'];
+        // $vectorIds = array_map(function ($vector) {
+        //     return $vector['id'];
+        // }, $responseData['vectors']);
+
+        $vectorIds = array_map(function ($vector) use ($id) {
+            // Only include vectors that exactly match ID or start with ID#chunk
+            if ($vector['id'] === (string)$id || strpos($vector['id'], $id . '#chunk') === 0) {
+                return $vector['id'];
+            }
+            return null;
         }, $responseData['vectors']);
+        
+        // Filter out null values
+        $vectorIds = array_filter($vectorIds);
+
+        if (empty($vectorIds)) {
+            return [
+                'code' => $code,
+                'status' => 'success',
+                'message' => "No post with id $id found in Pinecone"
+            ];
+        }
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, "{$this->pinecone_host}/vectors/delete");
@@ -283,7 +318,7 @@ class DCIO_Pinecone_Handler {
             $result = [
                 'code' => $code,
                 'status' => 'error',
-                'message' => curl_error($ch) ?? 'The post could not be deleted from Pinecone'
+                'message' => curl_error($ch) ?? 'The post could not be deleted from Pinecone',
             ];
         } else {
             $result = [
@@ -297,7 +332,8 @@ class DCIO_Pinecone_Handler {
         return $result;
     }
 
-    public function uploadVectorsToPinecone(array $vectors): array {
+    public function uploadVectorsToPinecone(array $vectors): array
+    {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, "{$this->pinecone_host}/vectors/upsert");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);

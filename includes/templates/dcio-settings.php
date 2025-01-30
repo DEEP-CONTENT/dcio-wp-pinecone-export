@@ -1,5 +1,5 @@
 <div class="wrap">
-    <h1>Pinecone Export Settings</h1>
+    <h1>Heise I/O Export Settings</h1>
     <form method="post" action="options.php">
         <?php
         settings_fields('dcio_pinecone_options');
