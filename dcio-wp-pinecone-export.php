@@ -7,7 +7,7 @@ Author: Sebastian Seypt
 */
 
 
-// Add the WP-CLI command registration here
+// WP-CLI command registration
 if (defined('WP_CLI') && WP_CLI) {
     require_once plugin_dir_path(__FILE__) . 'includes/class/dcio-wp-cli-command.php';
     WP_CLI::add_command('heise-io', 'DCIO_WP_CLI_Command');
