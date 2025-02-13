@@ -93,7 +93,7 @@ class DCIO_Pinecone_Export
             'dcio_pinecone_article_view',
             $default_callback,
             'dashicons-upload',
-            4
+            99
         );
 
         add_submenu_page(
